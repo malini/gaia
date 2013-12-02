@@ -104,6 +104,7 @@
     <link rel="import" href="/elements/notifications.html">
     <link rel="import" href="/elements/date_time.html">
     <link rel="import" href="/elements/languages.html">
+    <link rel="import" href="/elements/sim_manager.html">
     <link rel="import" href="/elements/homescreen_details.html">
     <link rel="import" href="/elements/homescreen.html">
     <link rel="import" href="/elements/keyboard.html">
@@ -181,19 +182,6 @@
     <section is="call-cf-mobileBusySettings" role="region" id="call-cf-mobileBusySettings"></section>
     <!-- Connectivity :: Call :: Call Forwarding Unconditional -->
     <section is="call-cf-unconditionalSettings" role="region" id="call-cf-unconditionalSettings"></section>
-    <!-- Connectivity :: Call :: Fixed Dialing Numbers (FDN) :: Authorized Numbers :: Action Menu -->
-    <form id="call-fdnList-action" role="dialog" data-type="action">
-      <header>
-        <span id="fdnAction-name">John Doe</span><br />
-        <span id="fdnAction-number">+1 2345678</span>
-      </header>
-      <menu>
-        <button id="fdnAction-call" data-l10n-id="fdnAction-call"> Call </button>
-        <button id="fdnAction-edit" data-l10n-id="fdnAction-edit"> Edit contact </button>
-        <button id="fdnAction-delete" data-l10n-id="fdnAction-delete"> Delete contact </button>
-        <button id="fdnAction-cancel" data-l10n-id="cancel"> Cancel </button>
-      </menu>
-    </form>
     <!-- Connectivity :: Call :: Fixed Dialing Numbers (FDN) :: Authorized Numbers :: Add -->
     <section is="call-fdnList-add" role="region" id="call-fdnList-add"></section>
     <!-- Connectivity :: Call :: Fixed Dialing Numbers (FDN) :: Authorized Numbers -->
@@ -229,8 +217,6 @@
     <!-- Connectivity :: Internet Sharing -->
     <section is="hotspot" role="region" id="hotspot"></section>
 
-    <!-- Personalization :: Sound :: Sound Selection -->
-    <section is="sound-selection" role="region" id="sound-selection"></section>
     <!-- Personalization :: Sound -->
     <section is="sound" role="region" id="sound" data-require-sub-panels="true"></section>
     <!-- Personalization :: Display -->
@@ -241,6 +227,8 @@
     <section is="dateTime" role="region" id="dateTime"></section>
     <!-- Personalization :: Language & Region -->
     <section is="languages" role="region" id="languages"></section>
+    <!-- Personalization :: SIM card manager -->
+    <section is="sim-manager" role="region" id="sim-manager"></section>
     <!-- Personalization :: Homescreen :: details -->
     <section is="homescreen-details" role="region" id="homescreen-details"></section>
     <!-- Personalization :: Homescreen -->
@@ -333,6 +321,9 @@
           <li>
             <small id="wifi-desc" class="menu-item-desc"></small>
             <a id="menuItem-wifi" class="menu-item" href="#wifi" data-l10n-id="wifi">Wi-Fi</a>
+          </li>
+          <li id="simCardManager-settings">
+            <a id="menuItem-simManager" class="menu-item" href="#sim-manager" data-l10n-id="simManager">SIM manager</a>
           </li>
           <li id="call-settings">
             <small id="call-desc" class="menu-item-desc"></small>

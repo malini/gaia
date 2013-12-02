@@ -1,9 +1,10 @@
 /*global mocha, MocksHelper, MockAttachment, MockL10n, loadBodyHTML, ThreadUI,
-         MockNavigatormozMobileMessage, Contacts, Compose, MockDialog,
+         MockNavigatormozMobileMessage, Contacts, Compose, MockErrorDialog,
          Template, MockSMIL, Utils, MessageManager, LinkActionHandler,
          LinkHelper, Attachment, MockContact, MockOptionMenu,
          MockActivityPicker, Threads, Settings, MockMessages, MockUtils,
-         MockContacts, ActivityHandler, Recipients, MockMozActivity */
+         MockContacts, ActivityHandler, Recipients, MockMozActivity,
+         ContactRenderer */
 
 'use strict';
 
@@ -45,6 +46,7 @@ requireApp('sms/test/unit/mock_custom_dialog.js');
 requireApp('sms/test/unit/mock_url.js');
 requireApp('sms/test/unit/mock_compose.js');
 requireApp('sms/test/unit/mock_activity_handler.js');
+require('/test/unit/mock_contact_renderer.js');
 
 var mocksHelperForThreadUI = new MocksHelper([
   'Attachment',
@@ -59,10 +61,12 @@ var mocksHelperForThreadUI = new MocksHelper([
   'ActivityPicker',
   'OptionMenu',
   'Dialog',
+  'ErrorDialog',
   'Contacts',
   'SMIL',
   'ActivityHandler',
-  'TimeHeaders'
+  'TimeHeaders',
+  'ContactRenderer'
 ]);
 
 mocksHelperForThreadUI.init();
@@ -72,6 +76,7 @@ suite('thread_ui.js >', function() {
   var container;
   var sendButton;
   var composeForm;
+  var recipientsList;
 
   var realMozL10n;
   var realMozMobileMessage;
@@ -145,6 +150,7 @@ suite('thread_ui.js >', function() {
     container = document.getElementById('messages-container');
     sendButton = document.getElementById('messages-send-button');
     composeForm = document.getElementById('messages-compose-form');
+    recipientsList = document.getElementById('messages-recipients-list');
 
     this.sinon.useFakeTimers();
 
@@ -207,11 +213,56 @@ suite('thread_ui.js >', function() {
   });
 
   suite('Search', function() {
-    test('search results cleared', function() {
+    setup(function() {
+      window.location.hash = '#new';
       Compose.clear();
+      ThreadUI.recipients.length = 0;
+      ThreadUI.recipients.inputValue = '';
+    });
+
+    teardown(function() {
+      window.location.hash = '';
+      Compose.clear();
+      ThreadUI.recipients.length = 0;
+      ThreadUI.recipients.inputValue = '';
+    });
+
+    test('composer cleared', function() {
       Compose.append('foo');
       ThreadUI.cleanFields(true);
       assert.equal(Compose.getContent(), '');
+    });
+
+    suite('rendering suggestions list', function() {
+      setup(function() {
+        this.sinon.spy(ContactRenderer.prototype, 'render');
+        ThreadUI.recipients.add({
+          number: '888'
+        });
+
+        var placeholder = document.createElement('span');
+        placeholder.setAttribute('contenteditable', 'true');
+        placeholder.isPlaceholder = true;
+        placeholder.textContent = '999';
+        recipientsList.appendChild(placeholder);
+
+        ThreadUI.recipients.inputValue = '999';
+
+        placeholder.dispatchEvent(new CustomEvent('input', { bubbles: true }));
+      });
+
+      test('does display found contacts', function() {
+        sinon.assert.calledWithMatch(ContactRenderer.prototype.render, {
+          input: '999',
+          target: container.querySelector('ul.contact-list')
+        });
+      });
+
+      test('does not display entered recipients', function() {
+        sinon.assert.calledWithMatch(ContactRenderer.prototype.render, {
+          skip: ['888']
+        });
+      });
     });
   });
 
@@ -1530,89 +1581,6 @@ suite('thread_ui.js >', function() {
           assert.isTrue(this.container.classList.contains('sending'));
         });
       });
-      suite('show error message when send message unsuccessfully', function() {
-        setup(function() {
-          MockDialog.mSetup();
-        });
-
-        teardown(function() {
-          MockDialog.mTeardown();
-        });
-
-        test('show general error for no signal error', function() {
-          ThreadUI.showSendMessageError('NoSignalError');
-          assert.isTrue(MockDialog.instances[0].show.called);
-          assert.equal(MockDialog.calls[0].title.l10nId,
-                      'sendGeneralErrorTitle');
-          assert.equal(MockDialog.calls[0].body.l10nId,
-                      'sendGeneralErrorBody');
-        });
-
-        test('show general error for not found error', function() {
-          ThreadUI.showSendMessageError('NotFoundError');
-          assert.isTrue(MockDialog.instances[0].show.called);
-          assert.equal(MockDialog.calls[0].title.l10nId,
-                      'sendGeneralErrorTitle');
-          assert.equal(MockDialog.calls[0].body.l10nId,
-                      'sendGeneralErrorBody');
-        });
-
-        test('show general error for unknown error', function() {
-          ThreadUI.showSendMessageError('UnknownError');
-          assert.isTrue(MockDialog.instances[0].show.called);
-          assert.equal(MockDialog.calls[0].title.l10nId,
-                      'sendGeneralErrorTitle');
-          assert.equal(MockDialog.calls[0].body.l10nId,
-                      'sendGeneralErrorBody');
-        });
-
-        test('show general error for internal error', function() {
-          ThreadUI.showSendMessageError('InternalError');
-          assert.isTrue(MockDialog.instances[0].show.called);
-          assert.equal(MockDialog.calls[0].title.l10nId,
-                      'sendGeneralErrorTitle');
-          assert.equal(MockDialog.calls[0].body.l10nId,
-                      'sendGeneralErrorBody');
-        });
-
-        test('show general error for invalid address error', function() {
-          ThreadUI.showSendMessageError('InvalidAddressError');
-          assert.isTrue(MockDialog.instances[0].show.called);
-          assert.equal(MockDialog.calls[0].title.l10nId,
-                      'sendGeneralErrorTitle');
-          assert.equal(MockDialog.calls[0].body.l10nId,
-                      'sendGeneralErrorBody');
-        });
-
-        test('show no SIM card', function() {
-          ThreadUI.showSendMessageError('NoSimCardError');
-          assert.isTrue(MockDialog.instances[0].show.called);
-          assert.equal(MockDialog.calls[0].title.l10nId,
-                      'sendNoSimCardTitle');
-          assert.equal(MockDialog.calls[0].body.l10nId,
-                      'sendNoSimCardBody');
-        });
-
-        test('show air plane mode', function() {
-          ThreadUI.showSendMessageError('RadioDisabledError');
-          assert.isTrue(MockDialog.instances[0].show.called);
-          assert.equal(MockDialog.calls[0].title.l10nId,
-                      'sendAirplaneModeTitle');
-          assert.equal(MockDialog.calls[0].body.l10nId,
-                      'sendAirplaneModeBody');
-        });
-
-        test('show FDN blockage error', function() {
-          ThreadUI.showSendMessageError(
-              'FdnCheckError',
-              ['123', '456', '789']
-          );
-          assert.equal(MockDialog.calls[0].title.l10nId,
-                      'fdnBlockedTitle');
-          assert.equal(MockDialog.calls[0].body.l10nId,
-                      'fdnBlockedBody');
-        });
-      });
     });
 
     suite('onDeliverySuccess >', function() {
@@ -2152,8 +2120,13 @@ suite('thread_ui.js >', function() {
         assert.equal(button.dataset.l10nId, 'download');
       });
       suite('clicking', function() {
+        var showMessageErrorSpy;
+        var errorCode;
+        var option;
+
         setup(function() {
           localize.reset();
+          showMessageErrorSpy = this.sinon.spy(ThreadUI, 'showMessageError');
           ThreadUI.handleMessageClick({
             target: button
           });
@@ -2183,6 +2156,63 @@ suite('thread_ui.js >', function() {
           });
           test('changes download text', function() {
             assert.ok(localize.calledWith(button, 'download'));
+          });
+          test('Message error dialog should not exist', function() {
+            assert.equal(showMessageErrorSpy.called, false);
+          });
+        });
+        suite('response non-active sim card error', function() {
+
+          setup(function() {
+            MessageManager.retrieveMMS.returnValues[0].error =
+            {
+              name: 'NonActiveSimCardError'
+            };
+            MessageManager.retrieveMMS.returnValues[0].onerror();
+          });
+          test('Message ID code/option for dialog', function() {
+            sinon.assert.calledWithMatch(showMessageErrorSpy,
+              'NonActiveSimCardError', { messageId: message.id });
+          });
+          test('Error dialog params and show', function() {
+            var code = MockErrorDialog.calls[0][0];
+            var opts = MockErrorDialog.calls[0][1];
+            assert.equal(code, 'NonActiveSimCardError');
+            assert.equal(opts.messageId, message.id);
+            assert.isTrue(!!opts.confirmHandler);
+            assert.equal(MockErrorDialog.prototype.show.called, true);
+          });
+        });
+        suite('response error with other errorCode', function() {
+          setup(function() {
+            MessageManager.retrieveMMS.returnValues[0].error =
+            {
+              name: 'OtherError'
+            };
+            MessageManager.retrieveMMS.returnValues[0].onerror();
+          });
+          test('Other error code/option for dialog', function() {
+            sinon.assert.calledWithMatch(showMessageErrorSpy,
+              'OtherError', { messageId: message.id });
+          });
+          test('Error dialog params and show', function() {
+            var code = MockErrorDialog.calls[0][0];
+            var opts = MockErrorDialog.calls[0][1];
+            assert.equal(code, 'OtherError');
+            assert.equal(opts.messageId, message.id);
+            assert.equal(MockErrorDialog.prototype.show.called, true);
+          });
+        });
+        suite('response error with no errorCode', function() {
+          setup(function() {
+            MessageManager.retrieveMMS.returnValues[0].code =
+            {
+              name: null
+            };
+            MessageManager.retrieveMMS.returnValues[0].onerror();
+          });
+          test('No error dialog for no error code case', function() {
+            assert.isFalse(showMessageErrorSpy.called);
           });
         });
         suite('response success', function() {
@@ -2889,291 +2919,6 @@ suite('thread_ui.js >', function() {
     });
   });
 
-  suite('Render Contact', function() {
-    test('Rendered Contact "givenName familyName"', function() {
-      var ul = document.createElement('ul');
-      var contact = new MockContact();
-      var html;
-
-      ThreadUI.renderContact({
-        contact: contact,
-        input: 'foo',
-        target: ul,
-        isContact: true,
-        isSuggestion: true
-      });
-      html = ul.firstElementChild.innerHTML;
-      assert.include(html, 'Pepito O\'Hare');
-    });
-
-    test('Rendered Contact highlighted "givenName familyName"', function() {
-      var ul = document.createElement('ul');
-      var contact = new MockContact();
-      var html;
-
-      ThreadUI.renderContact({
-        contact: contact,
-        input: 'Pepito O\'Hare',
-        target: ul,
-        isContact: true,
-        isSuggestion: true
-      });
-      html = ul.firstElementChild.innerHTML;
-
-      assert.include(html, '<span class="highlight">Pepito</span>');
-      assert.include(html, '<span class="highlight">O\'Hare</span>');
-    });
-
-    test('Rendered Contact "number"', function() {
-      var ul = document.createElement('ul');
-      var contact = new MockContact();
-      var html;
-
-      contact.tel[0].carrier = null;
-      contact.tel[0].type = null;
-
-      ThreadUI.renderContact({
-        contact: contact,
-        input: 'foo',
-        target: ul,
-        isContact: true,
-        isSuggestion: true
-      });
-      html = ul.firstElementChild.innerHTML;
-
-      assert.ok(html.contains('+346578888888'));
-    });
-
-    test('Rendered Contact highlighted "number"', function() {
-      var ul = document.createElement('ul');
-      var contact = new MockContact();
-      var html;
-
-      contact.tel[0].carrier = null;
-      contact.tel[0].type = null;
-
-      ThreadUI.renderContact({
-        contact: contact,
-        input: '346578888888',
-        target: ul,
-        isContact: true,
-        isSuggestion: true
-      });
-      html = ul.firstElementChild.innerHTML;
-
-      assert.ok(
-        html.contains('+<span class="highlight">346578888888</span>')
-      );
-    });
-
-    test('Rendered Contact "type | number"', function() {
-      var ul = document.createElement('ul');
-      var contact = new MockContact();
-      var html;
-
-      contact.tel[0].carrier = null;
-
-      ThreadUI.renderContact({
-        contact: contact,
-        input: 'foo',
-        target: ul,
-        isContact: true,
-        isSuggestion: true
-      });
-      html = ul.firstElementChild.innerHTML;
-
-      assert.ok(html.contains('<span data-l10n-id="Mobile">Mobile</span> | ' +
-        '+346578888888'));
-    });
-
-    test('Rendered Contact highlighted "type | number"', function() {
-      var ul = document.createElement('ul');
-      var contact = new MockContact();
-      var html;
-
-      contact.tel[0].carrier = null;
-
-      ThreadUI.renderContact({
-        contact: contact,
-        input: '346578888888',
-        target: ul,
-        isContact: true,
-        isSuggestion: true
-      });
-      html = ul.firstElementChild.innerHTML;
-
-      assert.ok(html.contains(
-        '<span data-l10n-id="Mobile">Mobile</span> | ' +
-        '+<span class="highlight">346578888888</span>'
-      ));
-    });
-
-    test('Rendered Contact "type | carrier, number"', function() {
-      var ul = document.createElement('ul');
-      var contact = new MockContact();
-      var html;
-
-      ThreadUI.renderContact({
-        contact: contact,
-        input: 'foo',
-        target: ul,
-        isContact: true,
-        isSuggestion: true
-      });
-      html = ul.firstElementChild.innerHTML;
-
-      assert.ok(html.contains(
-        '<span data-l10n-id="Mobile">Mobile</span> | ' +
-        'TEF, +346578888888'
-      ));
-    });
-
-    test('Rendered Contact highlighted "type | carrier, number"', function() {
-      var ul = document.createElement('ul');
-      var contact = new MockContact();
-      var html;
-
-      ThreadUI.renderContact({
-        contact: contact,
-        input: '346578888888',
-        target: ul,
-        isContact: true,
-        isSuggestion: true
-      });
-      html = ul.firstElementChild.innerHTML;
-
-      assert.ok(
-        html.contains(
-          '<span data-l10n-id="Mobile">Mobile</span> | ' +
-          'TEF, +<span class="highlight">346578888888</span>'
-        )
-      );
-    });
-
-    test('Rendered Contact w/ multiple: one', function() {
-      var target = document.createElement('ul');
-
-      ThreadUI.renderContact({
-        contact: MockContact(),
-        input: '+12125559999',
-        target: target,
-        isContact: true,
-        isSuggestion: false
-      });
-
-      assert.equal(target.children.length, 1);
-    });
-
-    test('Rendered Contact w/ multiple: one w/ minimal match', function() {
-      var target = document.createElement('ul');
-
-      ThreadUI.renderContact({
-        contact: MockContact(),
-        input: '5559999',
-        target: target,
-        isContact: true,
-        isSuggestion: false
-      });
-
-      assert.equal(target.children.length, 1);
-    });
-
-    test('Rendered Contact w/ multiple: all (isSuggestion)', function() {
-      var target = document.createElement('ul');
-
-      ThreadUI.renderContact({
-        contact: MockContact(),
-        input: '+12125559999',
-        target: target,
-        isContact: true,
-        isSuggestion: true
-      });
-
-      assert.equal(target.children.length, 2);
-    });
-
-    test('Rendered Contact omit numbers already in recipient list', function() {
-      var ul = document.createElement('ul');
-      var contact = new MockContact();
-      var html;
-
-      ThreadUI.recipients.add({
-        number: '+346578888888'
-      });
-
-      // This contact has two tel entries.
-      ThreadUI.renderContact({
-        contact: contact,
-        input: '+346578888888',
-        target: ul,
-        isContact: true,
-        isSuggestion: true
-      });
-
-      html = ul.innerHTML;
-
-      assert.ok(!html.contains('346578888888'));
-      assert.equal(ul.children.length, 1);
-    });
-
-    test('Render contact does not include photo by default', function() {
-      var ul = document.createElement('ul');
-      var contact = new MockContact();
-      var html;
-
-      ThreadUI.renderContact({
-        contact: contact,
-        input: 'foo',
-        target: ul,
-        isContact: true,
-        isSuggestion: true,
-        renderPhoto: false
-      });
-      html = ul.firstElementChild.innerHTML;
-
-      assert.isFalse(html.contains('img'));
-    });
-    test('Render contact without photo keeps avatar invisible', function() {
-      var ul = document.createElement('ul');
-      var contact = new MockContact();
-      var html;
-      contact.photo = testImageBlob;
-
-      ThreadUI.renderContact({
-        contact: contact,
-        input: 'foo',
-        target: ul,
-        isContact: true,
-        isSuggestion: true,
-        renderPhoto: true
-      });
-      html = ul.firstElementChild.innerHTML;
-
-      assert.ok(html.contains('img'));
-      assert.equal(ul.querySelector('img').style.opacity, 0);
-
-    });
-    test('Render contact with photo shows the image', function() {
-      var ul = document.createElement('ul');
-      var contact = new MockContact();
-      var html;
-      contact.photo = testImageBlob;
-
-      ThreadUI.renderContact({
-        contact: contact,
-        input: 'foo',
-        target: ul,
-        isContact: true,
-        isSuggestion: true,
-        renderPhoto: true
-      });
-      html = ul.firstElementChild.innerHTML;
-
-      assert.ok(html.contains('img'));
-      assert.equal(ul.querySelector('img').style.opacity, '');
-    });
-  });
-
   suite('Header Actions/Display', function() {
     setup(function() {
       Threads.delete(1);
@@ -3202,13 +2947,13 @@ suite('thread_ui.js >', function() {
 
           window.location.hash = '#thread=1';
 
-          var body = document.createElement('ul');
+          var header = document.createElement('div');
 
           ThreadUI.prompt({
             number: '999',
             contactId: contact.id,
             isContact: true,
-            body: body
+            header: header
           });
 
           assert.equal(MockOptionMenu.calls.length, 1);
@@ -3216,12 +2961,11 @@ suite('thread_ui.js >', function() {
           var call = MockOptionMenu.calls[0];
           var items = call.items;
 
-          // Ensures that the OptionMenu does not have
-          // the phone number to display since it's a contact
-          assert.equal(call.header, '');
+          // we use the passed header as the dialog's header
+          assert.equal(call.header, header);
 
-          // Only known Contact details should appear in the "section"
-          assert.equal(call.section, body);
+          // no section is passed for contact
+          assert.isUndefined(call.section);
 
           assert.equal(items.length, 3);
 
@@ -3258,7 +3002,7 @@ suite('thread_ui.js >', function() {
           assert.equal(call.header, '999');
 
           // Only known Contact details should appear in the "section"
-          assert.equal(call.section, '');
+          assert.isUndefined(call.section);
 
           assert.equal(items.length, 4);
 
@@ -3298,7 +3042,7 @@ suite('thread_ui.js >', function() {
           assert.equal(call.header, 'a@b.com');
 
           // Only known Contact details should appear in the "section"
-          assert.equal(call.section, '');
+          assert.isUndefined(call.section);
 
           assert.equal(items.length, 4);
 
@@ -3322,11 +3066,11 @@ suite('thread_ui.js >', function() {
 
           window.location.hash = '#thread=1';
 
-          var body = document.createElement('ul');
+          var header = document.createElement('div');
           ThreadUI.prompt({
             number: '999',
-            isContact: true,
-            body: body
+            header: header,
+            isContact: true
           });
 
           assert.equal(MockOptionMenu.calls.length, 1);
@@ -3334,12 +3078,11 @@ suite('thread_ui.js >', function() {
           var call = MockOptionMenu.calls[0];
           var items = call.items;
 
-          // Ensures that the OptionMenu was given
-          // the contact informations to be displayed
-          assert.equal(call.section, body);
+          // ensure that we display no body
+          assert.isUndefined(call.section);
 
-          // ensures we'll show no header
-          assert.equal(call.header, '');
+          // ensures we'll show a contact header
+          assert.equal(call.header, header);
 
           assert.equal(items.length, 3);
 
@@ -3396,7 +3139,7 @@ suite('thread_ui.js >', function() {
 
       suite('onHeaderActivation', function() {
         test('Single known', function() {
-          this.sinon.spy(ThreadUI, 'renderContact');
+          this.sinon.spy(ContactRenderer.prototype, 'render');
 
           Threads.set(1, {
             participants: ['+12125559999']
@@ -3414,12 +3157,13 @@ suite('thread_ui.js >', function() {
 
           assert.equal(calls.length, 1);
 
-          // contacts do not show the number in the header
-          assert.equal(calls[0].header, '');
+          // contacts do not show up in the body
+          assert.isUndefined(calls[0].section);
 
-          // but do have a body
-          var body = ThreadUI.renderContact.lastCall.args[0].target;
-          assert.equal(calls[0].section, body);
+          // contacts show up in the header
+          sinon.assert.calledWithMatch(ContactRenderer.prototype.render, {
+            target: calls[0].header
+          });
 
           assert.equal(calls[0].items.length, 3);
           assert.equal(typeof calls[0].complete, 'function');
@@ -3600,45 +3344,6 @@ suite('thread_ui.js >', function() {
           };
 
           window.location.hash = '#thread=1';
-        });
-
-        test('Correctly Displayed', function() {
-          var contacts = {
-            a: new MockContact(),
-            b: new MockContact()
-          };
-
-          // Truncate the tel record arrays; there should
-          // only be one when renderContact does its
-          // loop and comparison of dialiables
-          contacts.a.tel.length = 1;
-          contacts.b.tel.length = 1;
-
-          // Set to our "participants"
-          contacts.a.tel[0].value = '999';
-          contacts.b.tel[0].value = '888';
-
-          // "input" value represents the participant entry value
-          // that would be provided in ThreadUI.groupView()
-          ThreadUI.renderContact({
-            contact: contacts.a,
-            input: '999',
-            target: ThreadUI.participantsList,
-            isContact: true,
-            isSuggestion: false
-          });
-
-          ThreadUI.renderContact({
-            contact: contacts.b,
-            input: '888',
-            target: ThreadUI.participantsList,
-            isContact: true,
-            isSuggestion: false
-          });
-
-          assert.equal(
-            ThreadUI.participantsList.children.length, 2
-          );
         });
 
         test('Reset Group View', function() {

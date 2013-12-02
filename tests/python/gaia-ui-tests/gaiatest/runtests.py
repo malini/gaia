@@ -21,9 +21,9 @@ from marionette import MarionetteTestRunner
 from marionette import MarionetteTextTestRunner
 from marionette.runtests import cli
 from moztest.results import TestResult, relevant_line
-from yoctopuce.yocto_api import *
-from yoctopuce.yocto_current import *
-from yoctopuce.yocto_datalogger import *
+from yoctopuce.yocto_api import YAPI, YRefParam
+from yoctopuce.yocto_current import YCurrent
+from yoctopuce.yocto_datalogger import YDataLogger
 
 from gaiatest import __name__
 from gaiatest import GaiaTestCase
@@ -228,7 +228,7 @@ class GaiaTestRunner(MarionetteTestRunner):
             heading = 'Warning'
             message = 'You are about to run destructive tests against a Firefox OS instance. These tests ' \
                       'will restore the target to a clean state, meaning any personal data such as contacts, ' \
-                      'messages, photos, videos, music, etc. will be removed. This may include data on the ' \
+                      'messages, photos, videos, music, etc. will be removed. This will include data on the ' \
                       'microSD card. The tests may also attempt to initiate outgoing calls, or connect to ' \
                       'services such as cellular data, wifi, gps, bluetooth, etc.'
             try:
